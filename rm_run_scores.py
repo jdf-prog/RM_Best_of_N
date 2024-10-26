@@ -344,12 +344,15 @@ def main(
     dataset = datasets.Dataset.from_list(data)
     if output_file is None:
         output_file = input_file.parent / (input_file.stem + "_rm_scores.json")
-    if not output_file.parent.exists() and not overwrite:
-        output_file.parent.mkdir(parents=True)
+    if not output_file.exists():
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        print(f"Output file will be saved to {output_file}")
     else:
-        print(f"Output file already exists at {output_file}")
-        return
-    
+        if not overwrite:
+            print(f"Output file already exists at {output_file}")
+            return
+        else:
+            print(f"Overwriting output file at {output_file}")    
         
     # get reward scores
     all_indices = []
