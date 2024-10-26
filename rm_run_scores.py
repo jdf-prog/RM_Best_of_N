@@ -302,29 +302,6 @@ def get_reward_scores_mp(
     print(f"Successfully generated all {len(all_scores)} scores")
     return all_scores
 
-def load_dataset(task, input_file=None):
-    if not input_file:
-        input_file = Path("../ZeroEval") / 'result_dirs' / task / "Meta-Llama-3-8B-Instruct.json"
-        if not input_file.exists():
-            dataset = datasets.load_dataset("DongfuJiang/zeroeval", task.replace("-", "_"), split='test')
-            def map_chat_history(item, index):
-                item['session_id'] = index
-                item['chat_history'] = [Template(zeroeval_template).substitute(question=item['question'])]
-                return item
-            dataset = dataset.map(map_chat_history, with_indices=True)
-        else:
-            with open(input_file, 'r') as f:
-                data = json.load(f)
-            dataset = datasets.Dataset.from_list(data)
-    else:
-        input_file = Path(input_file)
-        if not input_file.exists():
-            raise ValueError(f"Input file {input_file} does not exist.")
-        with open(input_file, 'r') as f:
-            data = json.load(f)
-        dataset = datasets.Dataset.from_list(data)
-    return dataset
-
 def main(
     input_file,
     output_file=None,
@@ -361,16 +338,21 @@ def main(
     for item in dataset:
         all_indices.append([])
         for output in item['output']:
-            all_inputs.append([
-                {
-                    "role": "user",
-                    "content": item['chat_history'][0]
-                },
-                {
-                    "role": "assistant",
-                    "content": output
-                }
-            ])
+            inputs = []
+            for i in range(len(item['chat_history'])):
+                if i % 2 == 0:
+                    role = "user"
+                else:
+                    role = "assistant"
+                inputs.append({
+                    "role": role,
+                    "content": item['chat_history'][i]
+                })
+            inputs.append({
+                "role": "assistant",
+                "content": output
+            })
+            all_inputs.append(inputs)
             all_indices[-1].append(idx)
             idx += 1
     all_scores = get_reward_scores_mp(
